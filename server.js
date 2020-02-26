@@ -14,6 +14,7 @@ const app = express();
 const PORT = process.env.PORT;
 app.use(morgan('dev')); // http logging
 app.use(cors()); // enable CORS request
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public')); // server files from /public folder
 app.use(express.json()); // enable reading incoming json data
 // API Routes
@@ -23,7 +24,7 @@ app.get('/api/todos', async (req, res) => {
 
     try {
         const result = await client.query(`
-            
+            SELECT * FROM todos;
         `);
 
         res.json(result.rows);
@@ -39,12 +40,15 @@ app.get('/api/todos', async (req, res) => {
 
 app.post('/api/todos', async (req, res) => {
     const todo = req.body;
+    
+    console.log('Post body is', todo);
 
     try {
         const result = await client.query(`
-            
+            INSERT INTO todos (id, task, complete)
+            VALUES (DEFAULT, $1, $2);
         `,
-            [/* pass in data */]);
+        [todo.task, todo.complete]);
 
         res.json(result.rows[0]);
     }
@@ -59,11 +63,16 @@ app.post('/api/todos', async (req, res) => {
 app.put('/api/todos/:id', async (req, res) => {
     const id = req.params.id;
     const todo = req.body;
-
+    
+    console.log('Put body is', todo);
+    
     try {
         const result = await client.query(`
-            
-        `, [/* pass in data */]);
+            UPDATE todos
+            SET task = $1, complete = $2
+            WHERE id = $3
+            RETURNING *;
+        `, [todo.task, todo.complete, id]);
 
         res.json(result.rows[0]);
     }
@@ -76,12 +85,14 @@ app.put('/api/todos/:id', async (req, res) => {
 });
 
 app.delete('/api/todos/:id', async (req, res) => {
-    // get the id that was passed in the route:
+    const id = req.params.id;
 
     try {
         const result = await client.query(`
-
-        `, [/* pass data */]);
+            DELETE FROM todos
+            WHERE id = $1
+            RETURNING *;
+        `, [id]);
 
         res.json(result.rows[0]);
     }
